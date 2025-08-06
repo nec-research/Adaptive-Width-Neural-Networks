@@ -1,0 +1,15 @@
+matplotlib
+seaborn
+numpy
+jupyter
+scikit-learn
+torch # for the experiments we used torch>=2.0.0,<=2.4.0
+torch-geometric
+mlwiz>=1.2.4  # for the experiments we used mlwiz==1.2.0
+
+scikit-optimize>=0.10.2 # for the experiments we used scikit-optimize==0.10.2
+datasets>=3.0.0 # for the experiments we used datasets==3.0.0
+transformers=>=4.45.2 # for the experiments we used transformers==4.45.2
+tokenizers
+openml
+ucimlrepo
