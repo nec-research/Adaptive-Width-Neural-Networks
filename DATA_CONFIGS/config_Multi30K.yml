@@ -1,0 +1,19 @@
+splitter:
+  splits_folder: DATA_SPLITS
+  class_name: mlwiz.data.splitter.Splitter
+  args:
+    n_outer_folds: 1
+    n_inner_folds: 1
+    seed: 42
+    stratify: False
+    shuffle: False
+    inner_val_ratio: 0.3333333333333333333  # ~1000 samples out of 30k
+    outer_val_ratio: 0.0322580645161290323  # ~1000 examples out of 31k
+    test_ratio: 0.0322580645161290323  # ~1000 examples out of 31k
+dataset:
+  class_name: dataset.Multi30K
+  args:
+    storage_folder:  /mnt/local/ferrica/DATA/
+    max_len: 128  # for padding and truncation
+#    transform_train: transform.
+#    transform_eval: transform.

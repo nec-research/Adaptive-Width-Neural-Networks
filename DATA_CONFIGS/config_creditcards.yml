@@ -1,0 +1,16 @@
+splitter:
+  splits_folder: /mnt/local/ferrica/DATA_SPLITS
+  class_name: mlwiz.data.splitter.Splitter
+  args:
+    n_outer_folds: 1
+    n_inner_folds: 1
+    seed: 42
+    stratify: True
+    shuffle: True
+    inner_val_ratio: 0.1
+    outer_val_ratio: 0.1
+    test_ratio: 0.2
+dataset:
+  class_name: dataset.CreditCards
+  args:
+    storage_folder:  /mnt/local/ferrica/DATA/

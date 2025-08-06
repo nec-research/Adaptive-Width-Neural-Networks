@@ -1,0 +1,168 @@
+# Telegram Bot
+telegram_config_file: telegram_config.yml
+
+
+# Dataset and Splits
+storage_folder: DATA
+dataset_class: dataset.SpiralHard
+data_splits_file:  DATA_SPLITS//SpiralHard/SpiralHard_outer1_inner1.splits
+
+
+# Hardware
+device:  cpu
+max_cpus:  64
+max_gpus: 0
+gpus_per_task:  0.5
+# gpus_subset: 0,1,2,3,4,5,6,7,8
+
+
+# Data Loading
+dataset_getter: mlwiz.data.provider.DataProvider
+data_loader:
+  class_name: torch.utils.data.DataLoader
+  args:
+    num_workers : 0
+    pin_memory: False
+#    num_workers : 1
+#    pin_memory: True
+
+
+# Reproducibility
+seed: 42
+
+# Experiment
+result_folder: RESULTS/MLP/SpiralHard
+exp_name: mlp_awn
+experiment: experiment.WidthExperiment
+higher_results_are_better: True  # classification
+evaluate_every: 1
+model_selection_training_runs: 1
+risk_assessment_training_runs: 10
+
+
+grid:
+  
+  model: model.AWN
+  checkpoint: True
+  shuffle: True
+  batch_size: 128
+  epochs: 5000
+
+  # Model specific arguments #
+
+  num_hidden_layers:
+    - 1
+#      - 2
+
+  share_width_distribution:
+    - False
+#      - True
+
+  disable_adaptation: 
+    - False
+#    - True
+
+  # treat the minibatch ELBO as if we had run an entire pass over the dataset
+  # essentially it rescales the minibatch gradient of the classification term
+  # therefore avoiding that other terms dominate the loss
+  n_observations: 2000  # approx training set size
+
+  quantile: 0.9
+
+  dynamic_architecture: dynamic_architecture.DynamicMLP
+
+  truncated_distribution:
+    - class_name: distribution.TruncatedDistribution
+      args:
+        discretized_distribution:
+          - class_name: distribution.DiscretizedDistribution
+            args:
+              base_distribution:
+                - class_name: distribution.Exponential
+                  args:  # initial values for the distribution
+                    rate:
+                      - 0.01
+                    boundary: 0.0005  # no more than ~5000 neurons with 0.9 quantile
+
+  # scale for p(theta)
+  theta_prior_scale:
+    - 100.
+    - 1.
+
+  # mean for p(alpha)
+  alpha_prior_mean:
+    - 0.01
+
+  # scale for p(alpha)
+  alpha_prior_scale:
+    - 0.01
+
+  init_type:
+    - gaussian
+    - uniform
+    - null
+
+  # classical activation of neurons
+  activation:
+    - torch.nn.functional.relu6
+    - torch.nn.functional.relu
+    - torch.nn.functional.leaky_relu
+
+  # apply after the importance renormalization
+  activation_outer: null # torch.nn.functional.relu
+
+  # ------------------------ #
+
+  # Optimizer
+  optimizer:
+    - class_name: mlwiz.training.callback.optimizer.Optimizer
+      args:
+        optimizer_class_name: torch.optim.Adam
+        lr:
+          - 0.01
+        weight_decay: 0.0
+
+  # Scheduler (optional)
+  scheduler: null
+
+
+  # Loss metric (with an example of Additive Loss)
+  loss: metric.ELBO_Classification
+
+  # Score metric
+  scorer:
+    - class_name: mlwiz.training.callback.metric.MultiScore
+      args:
+        main_scorer: mlwiz.training.callback.metric.MulticlassAccuracy
+        ce_loss: metric.CELoss
+        total_width: metric.TotalWidth
+        prior_theta: metric.Prior_theta
+        prior_gamma: metric.Prior_gamma
+        forward_time : metric.ForwardTime
+
+  # Readout (optional)
+  readout: null
+
+  # Training engine
+  engine: mlwiz.training.engine.TrainingEngine
+
+  # Gradient clipper (optional)
+  gradient_clipper: null
+
+  # Early stopper (optional, with an example of "patience" early stopping on the validation score)
+  early_stopper:
+    - class_name:
+        - mlwiz.training.callback.early_stopping.PatienceEarlyStopper
+      args:
+        patience:
+          - 5000
+        # SYNTAX: (train_,validation_)[name_of_the_scorer_or_loss_to_monitor] -> we can use MAIN_LOSS or MAIN_SCORE
+        monitor: validation_main_score
+        mode: max  # is best the `max` or the `min` value we are monitoring?
+        checkpoint: True  # store the best checkpoint
+
+  # Plotter of metrics
+  plotter:
+    - class_name: plotter.WidthPlotter
+      args:
+        store_on_disk: True  # store evolution of metrics over time

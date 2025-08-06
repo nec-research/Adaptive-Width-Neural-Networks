@@ -1,0 +1,158 @@
+# Telegram Bot
+# telegram_config_file: telegram_config.yml
+
+
+# Dataset and Splits
+storage_folder: DATA
+dataset_class: dataset.CIFAR10
+data_splits_file:  DATA_SPLITS/CIFAR10/CIFAR10_outer1_inner1.splits
+
+
+# Hardware
+device:  cuda
+max_cpus:  64
+max_gpus: 3
+gpus_per_task:  0.5
+# gpus_subset: 0,1,2,3,4,5,6,7,8
+
+
+# Data Loading
+dataset_getter: mlwiz.data.provider.DataProvider
+data_loader:
+  class_name: torch.utils.data.DataLoader  # dataset is not a graph, but we use general PyG data utilities
+  args:
+    num_workers : 2
+    pin_memory: True
+
+
+# Reproducibility
+seed: 42
+
+# Experiment
+result_folder: RESULTS/GRID/CNN/
+exp_name: resnet20_awn
+experiment: experiment.WidthExperiment
+higher_results_are_better: True  # classification
+evaluate_every: 1
+model_selection_training_runs: 1
+risk_assessment_training_runs: 10
+
+
+grid:
+  
+  model: model.AWN
+  checkpoint: True
+  shuffle: True
+  batch_size: 128
+  epochs: 200
+
+  # DynamicMLP specific arguments #
+
+  num_hidden_layers:
+    - 1
+
+  share_width_distribution:
+    - False
+
+  # treat the minibatch ELBO as if we had run an entire pass over the dataset
+  # essentially it rescales the minibatch gradient of the classification term
+  # therefore avoiding that other terms dominate the loss
+  n_observations: 40000  # approx training set size
+
+  quantile: 0.9
+
+  dynamic_architecture: dynamic_architecture.DynamicResNet20
+
+  truncated_distribution:
+    - class_name: distribution.TruncatedDistribution
+      args:
+        discretized_distribution:
+          - class_name: distribution.DiscretizedDistribution
+            args:
+              base_distribution:
+                - class_name: distribution.Exponential
+                  args:  # initial values for the distribution
+                    rate:
+                      - 0.02  # ~128 neurons for 0.9 quantile
+
+  # scale for p(theta)
+  theta_prior_scale:
+    - 1.
+#      - 3.
+
+  # mean for p(alpha)
+  alpha_prior_mean:
+    - 0.001
+
+  # scale for p(alpha)
+  alpha_prior_scale:
+    - null
+#      - 0.01
+#      - 100
+
+  init_type:
+    - gaussian
+
+  # classical activation of neurons
+  activation:
+    - torch.nn.functional.leaky_relu
+
+  # apply after the importance renormalization
+  activation_outer: null # torch.nn.functional.relu
+
+  # ------------------------ #
+
+  # Optimizer
+  optimizer:
+    - class_name: mlwiz.training.callback.optimizer.Optimizer
+      args:
+        optimizer_class_name: torch.optim.SGD
+        lr: 0.1
+        weight_decay: 0.0001
+        momentum: 0.9
+
+  # Scheduler (optional)
+  scheduler:
+    - class_name: scheduler.CifarScheduler
+      args:
+        scheduler_class_name: torch.optim.lr_scheduler.MultiStepLR
+        gamma: 0.1
+        max_epochs: 200  # this is used by CifarScheduler to create "milestones" and pass it to MultiStepLR
+
+  # Loss metric (with an example of Additive Loss)
+  loss: metric.ELBO_Classification
+
+  # Score metric
+  scorer:
+    - class_name: mlwiz.training.callback.metric.MultiScore
+      args:
+        main_scorer: mlwiz.training.callback.metric.MulticlassAccuracy
+        ce_loss: metric.CELoss
+        total_width: metric.TotalWidth
+        prior_theta: metric.Prior_theta
+        prior_gamma: metric.Prior_gamma
+        forward_time : metric.ForwardTime
+
+  # Training engine
+  engine: mlwiz.training.engine.TrainingEngine
+
+  # Gradient clipper (optional)
+  gradient_clipper: null
+
+  # Early stopper (optional, with an example of "patience" early stopping on the validation score)
+  early_stopper:
+    - class_name:
+        - mlwiz.training.callback.early_stopping.PatienceEarlyStopper
+      args:
+        patience:
+          - 200
+        # SYNTAX: (train_,validation_)[name_of_the_scorer_or_loss_to_monitor] -> we can use MAIN_LOSS or MAIN_SCORE
+        monitor: validation_main_score
+        mode: max  # is best the `max` or the `min` value we are monitoring?
+        checkpoint: True  # store the best checkpoint
+
+  # Plotter of metrics
+  plotter:
+    - class_name: plotter.WidthPlotter # mlwiz.training.callback.plotter.Plotter
+      args:
+        store_on_disk: True  # store evolution of metrics over time

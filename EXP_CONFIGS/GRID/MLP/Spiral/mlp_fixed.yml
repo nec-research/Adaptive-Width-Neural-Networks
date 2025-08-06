@@ -1,0 +1,121 @@
+# Telegram Bot
+telegram_config_file: telegram_config.yml
+
+
+# Dataset and Splits
+storage_folder: DATA
+dataset_class: dataset.Spiral
+data_splits_file:  DATA_SPLITS/Spiral/Spiral_outer1_inner1.splits
+
+
+# Hardware
+device:  cpu
+max_cpus:  64
+max_gpus: 0
+gpus_per_task:  0.5
+# gpus_subset: 0,1,2,3,4,5,6,7,8
+
+
+# Data Loading
+dataset_getter: mlwiz.data.provider.DataProvider
+data_loader:
+  class_name: torch.utils.data.DataLoader
+  args:
+    num_workers : 0
+    pin_memory: False
+#    num_workers : 1
+#    pin_memory: True
+
+
+# Reproducibility
+seed: 42
+
+# Experiment
+result_folder: RESULTS/MLP/Spiral
+exp_name: mlp_fixed
+experiment: mlwiz.experiment.Experiment
+higher_results_are_better: True  # classification
+evaluate_every: 1
+model_selection_training_runs: 1
+risk_assessment_training_runs: 10
+
+
+grid:
+
+  model: model.MLP
+  checkpoint: True
+  shuffle: True
+  batch_size:
+    - 32
+    - 128
+  epochs: 1000
+
+  # Model specific arguments #
+
+  apply_ntk_reparam: False
+  has_bias: True
+
+  num_hidden_layers:
+    - 1
+
+  num_hidden_neurons:
+    - 8
+    - 16
+    - 24
+    - 128
+    - 256
+
+  # classical activation of neurons
+  activation:
+    - torch.nn.functional.relu6
+    - torch.nn.functional.relu
+    - torch.nn.functional.leaky_relu
+
+  # ------------------------ #
+
+  # Optimizer
+  optimizer:
+    - class_name: mlwiz.training.callback.optimizer.Optimizer
+      args:
+        optimizer_class_name: torch.optim.Adam
+        lr:
+          - 0.1
+          - 0.01
+        weight_decay: 0.0
+
+  # Scheduler (optional)
+  scheduler: null
+
+  # Loss metric
+  loss:  mlwiz.training.callback.metric.MulticlassClassification
+
+
+  # Score metric (with an example of Multi Score)
+  scorer:
+    - class_name: mlwiz.training.callback.metric.MultiScore
+      args:
+        main_scorer: mlwiz.training.callback.metric.MulticlassAccuracy
+
+  # Training engine
+  engine: mlwiz.training.engine.TrainingEngine
+
+  # Gradient clipper (optional)
+  gradient_clipper: null
+
+  # Early stopper (optional, with an example of "patience" early stopping on the validation score)
+  early_stopper:
+    - class_name:
+        - mlwiz.training.callback.early_stopping.PatienceEarlyStopper
+      args:
+        patience:
+          - 5000
+        # SYNTAX: (train_,validation_)[name_of_the_scorer_or_loss_to_monitor] -> we can use MAIN_LOSS or MAIN_SCORE
+        monitor: validation_main_score
+        mode: max  # is best the `max` or the `min` value we are monitoring?
+        checkpoint: True  # store the best checkpoint
+
+  # Plotter of metrics
+  plotter:
+    - class_name: mlwiz.training.callback.plotter.Plotter
+      args:
+        store_on_disk: True  # store evolution of metrics over time
