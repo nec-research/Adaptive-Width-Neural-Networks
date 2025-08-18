@@ -13,3 +13,6 @@ transformers=>=4.45.2 # for the experiments we used transformers==4.45.2
 tokenizers
 openml
 ucimlrepo
+h5py
+openml_pytorch
+gpustat
