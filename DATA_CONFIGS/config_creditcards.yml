@@ -1,5 +1,5 @@
 splitter:
-  splits_folder: /mnt/local/ferrica/DATA_SPLITS
+  splits_folder: DATA_SPLITS
   class_name: mlwiz.data.splitter.Splitter
   args:
     n_outer_folds: 1
@@ -13,4 +13,4 @@ splitter:
 dataset:
   class_name: dataset.CreditCards
   args:
-    storage_folder:  /mnt/local/ferrica/DATA/
+    storage_folder:  DATA/

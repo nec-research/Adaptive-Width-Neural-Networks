@@ -13,6 +13,6 @@ splitter:
 dataset:
   class_name: dataset.CIFAR10
   args:
-    storage_folder:  /mnt/local/ferrica/DATA/
+    storage_folder:  DATA/
     transform_train: transform.CIFARTransformTrain
     transform_eval: transform.CIFARTransformEval

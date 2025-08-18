@@ -13,4 +13,4 @@ splitter:
 dataset:
   class_name: dataset.DoubleMoon
   args:
-    storage_folder:  /mnt/local/ferrica/DATA/
+    storage_folder:  DATA/

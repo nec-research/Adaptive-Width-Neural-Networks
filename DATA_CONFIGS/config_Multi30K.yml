@@ -13,7 +13,7 @@ splitter:
 dataset:
   class_name: dataset.Multi30K
   args:
-    storage_folder:  /mnt/local/ferrica/DATA/
+    storage_folder:  DATA/
     max_len: 128  # for padding and truncation
 #    transform_train: transform.
 #    transform_eval: transform.

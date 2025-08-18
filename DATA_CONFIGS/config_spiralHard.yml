@@ -13,4 +13,4 @@ splitter:
 dataset:
   class_name: dataset.SpiralHard
   args:
-    storage_folder:  /mnt/local/ferrica/DATA/
+    storage_folder:  DATA/
