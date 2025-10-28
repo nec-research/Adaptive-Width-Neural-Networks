@@ -1,6 +1,7 @@
 from collections import defaultdict
 
 import numpy as np
+import torch
 
 ################################################################################
 # Copyright (c) 2021 ContinualAI.                                              #
@@ -11,6 +12,12 @@ import numpy as np
 # Author(s): Antonio Carta                                                     #
 # E-mail: contact@continualai.org                                              #
 # Website: avalanche.continualai.org                                           #
+#                                                                              #
+# Modifications:                                                               #
+#   - Copyright (c) 2025 Federico Errica <federico.errica@neclab.eu>           #
+#   - Modified on 2025-10-28: added function to properly migrate state between #
+#     conceptually identical parameters with different ids                     #
+#     (e.g., for width adaptation)                                             #
 ################################################################################
 """
     Utilities to handle optimizer's update when using dynamic architectures.
@@ -103,7 +110,6 @@ def _map_optimized_params(optimizer, parameters, old_params=None):
         not_found_in_parameters,
     )
 
-
 def _build_tree_from_name_groups(name_groups):
     root = _TreeNode("")  # Root node
     node_mapping = {}
@@ -150,6 +156,79 @@ def _print_group_information(node, prefix=""):
     # Recursively print group information for children nodes
     for child_name, child_node in node.children.items():
         _print_group_information(child_node, prefix + "  ")
+
+
+def migrate_optimizer_state(optimizer, old_param, new_param):
+    """
+    Attempt to preserve optimizer state tensors when replacing a parameter
+    (e.g., after expanding a layer). Works generically for any optimizer
+    without assuming specific state structure (e.g., Adam, SGD, RMSProp).
+
+    This function copies overlapping tensor slices from the old parameter’s
+    optimizer state into the new parameter’s state, preserving the optimizer’s
+    momentum or moving averages for the overlapping region. It then removes
+    the old parameter’s state entry.
+
+    Example:
+        >>> migrate_optimizer_state(optimizer, old_layer.weight, new_layer.weight)
+
+    Args:
+        optimizer (Optimizer):
+            A PyTorch optimizer whose state should be migrated.
+        old_param (torch.nn.Parameter):
+            The old parameter being replaced (must exist in optimizer.state).
+        new_param (torch.nn.Parameter):
+            The new parameter taking its place (e.g., after layer expansion).
+
+    Notes:
+        - If `old_param` has no entry in the optimizer state, this is a no-op.
+        - For each tensor in the old state, the overlapping region
+          (defined by the minimum shape along each dimension) is copied.
+        - Non-tensor fields (e.g., 'step' counters) are shallow-copied.
+        - The new state is created even if shapes differ.
+        - This is optimizer-agnostic: it works for Adam, SGD, RMSProp, etc.
+        - This function does *not* modify `optimizer.param_groups`.
+
+    Behavior overview:
+        - Preserves partial optimizer statistics for overlapping tensor regions.
+        - Zeros out extra entries in new parameters beyond the old shape.
+        - Removes old parameter’s state from the optimizer.
+
+    """
+    # Skip if the old parameter has no state
+    if old_param not in optimizer.state:
+        return
+
+    old_state = optimizer.state[old_param]
+    new_state = {}
+
+    for key, value in old_state.items():
+        # Handle tensor-valued state entries (e.g., Adam's exp_avg, exp_avg_sq)
+        # the second check avoids that Adam's parameters like step for a layer like "layers.0.weight" get a wrong shape. They will be handled differently. 
+        if isinstance(value, torch.Tensor) and (len(value.shape) == len(new_param.data.shape)):
+            
+            # Create a zero tensor matching the new parameter's shape
+            new_value = torch.zeros_like(new_param.data)
+
+            # Determine the overlapping slice between old and new tensors
+            common_shape = tuple(min(a, b) for a, b in zip(value.shape, new_param.shape))
+            slices = tuple(slice(0, s) for s in common_shape)
+
+            # Copy the overlapping region from old state tensor
+            new_value[slices] = value[slices]
+            new_state[key] = new_value
+        else:
+            # Non-matching fields are copied as-is
+            new_state[key] = value
+
+    # Register new parameter state and remove old one
+    if new_state:
+        optimizer.state[new_param] = new_state
+    else:
+        # Leave it uninitialized: the optimizer will lazily create state on step()
+        optimizer.state.pop(new_param, None)
+
+    optimizer.state.pop(old_param, None)
 
 
 def update_optimizer(
@@ -199,8 +278,7 @@ def update_optimizer(
         # Look for old parameter id in current optimizer
         group["params"][param_idx] = new_p
         if old_p in optimizer.state:
-            optimizer.state.pop(old_p)
-            optimizer.state[new_p] = {}
+            migrate_optimizer_state(optimizer, old_p, new_p)
 
     # Remove parameters that are not here anymore
     # This should not happend in most use case
