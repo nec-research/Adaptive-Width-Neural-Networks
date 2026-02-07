@@ -562,24 +562,21 @@ class DiscretizedDistribution(Module):
             assert self.cdf(l.unsqueeze(1)) >= p
             return l, l + 2  # + 2 to avoid degenerate cases
 
-        # adapt the search: U will always have cdf(U) >= p, so we need to
-        # check when we move from cdf(U) > p to cdf(U-1) <= p
+        # Binary search over integer-valued points.
+        # Invariant: cdf(l) < p <= cdf(u). Keep u as a valid candidate.
         while l < u:
-            if l == (u - 1.0):
-                # assert self.cdf((u + 1).unsqueeze(1)) >= p
-                # return u + 1, u + 1
-                assert self.cdf(u.unsqueeze(1)) >= p
-                return u, u + 2  # + 2 to avoid degenerate cases
-
             m = torch.floor((l + u) / 2.0)
             cdf_m = self.cdf(m.unsqueeze(1))
 
             if cdf_m < p:
-                # move L to the right, closing the gap
+                # Move L to the right.
                 l = m + 1.0
-            elif cdf_m > p:
-                # move U to the left, closing the gap
-                u = m - 1.0
+            else:
+                # Keep M in the candidate set to preserve cdf(u) >= p.
+                u = m
+
+        assert self.cdf(u.unsqueeze(1)) >= p
+        return u, u + 2  # + 2 to avoid degenerate cases
 
     def compute_probability_vector(self, x) -> torch.Tensor:
         """
