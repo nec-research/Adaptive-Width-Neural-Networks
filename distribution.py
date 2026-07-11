@@ -584,6 +584,15 @@ class DiscretizedDistribution(Module):
 
         :return: a vector of arbitrary length with the probabilities
         """
+        if isinstance(self.base_distribution, Exponential):
+            # For an exponential distribution,
+            # P(k <= X < k + 1) = (1 - exp(-rate)) * exp(-rate * k).
+            # The first factor is shared by every bin and cancels when the
+            # vector is normalized, so normalize the geometric logits with
+            # softmax directly.
+            rate = self.base_distribution.rate
+            return torch.softmax(-rate * x.squeeze(1), dim=0)
+
         log_probs = self.log_prob(x).squeeze(1)
         probs = log_probs.exp()
         probs = probs / probs.sum()
