@@ -115,6 +115,17 @@ uv run mlwiz-exp --config-file EXP_CONFIGS/GRID/DGN/REDDIT_BINARY/dgn_awn.yml --
 uv run mlwiz-exp --config-file EXP_CONFIGS/GRID/DGN/REDDIT_BINARY/dgn_fixed.yml --debug
 ```
 
+Launch both Multi30K grids concurrently on separate GPU pairs (two GPUs each):
+
+```bash
+uv run --locked python scripts/launch_transformers.py --fixed-gpus 0,1 --awn-gpus 2,3
+```
+
+The launcher writes separate `fixed.log` and `awn.log` files under
+`RESULTS/GRID/TRANSFORMER/launch_<PID>/` and waits for both runs. Add `--dry-run`
+to inspect GPU assignments without starting training. AWN uses
+`theta_prior_scale: 10`; this parameter remains inactive in the CE-only loss.
+
 ### 3. Optional search baselines
 
 ```bash
