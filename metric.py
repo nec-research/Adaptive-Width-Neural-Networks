@@ -176,7 +176,7 @@ class ELBO_Classification(Metric):
         # maximize log p y given x
         # we assume that each minibatch contributes as if it was the entire
         # dataset, hence we multiply by n_obs (size of training set)
-        if targets.shape[1] == 1:
+        if targets.ndim == 2 and targets.shape[1] == 1:
             targets = targets.squeeze(1)
 
         log_p_y = (
@@ -264,7 +264,7 @@ class CELoss(Metric):
         # maximize log p y given x
         # we assume that each minibatch contributes as if it was the entire
         # dataset, hence we multiply by n_obs (size of training set)
-        if targets.shape[1] == 1:
+        if targets.ndim == 2 and targets.shape[1] == 1:
             targets = targets.squeeze(1)
 
         log_p_y = CrossEntropyLoss(reduction="none")(output_state, targets)

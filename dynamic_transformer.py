@@ -280,7 +280,7 @@ class DynamicTransformer(DynamicArchitecture):
             # or decoder layer, and not the internal FFN
             pass
 
-    def forward(self, src_trg, qW_probs):
+    def forward(self, src_trg, qW_probs, return_activations: bool = False):
         assert len(qW_probs) == self.n_layers * 2
 
         tok, att_mask = src_trg[:, :, :, 0], src_trg[:, :, :, 1]

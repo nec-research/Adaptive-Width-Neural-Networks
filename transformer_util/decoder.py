@@ -129,7 +129,7 @@ class DecoderLayer(nn.Module):
         :return:
         """
         self.ffn.change_shape(
-            layer_id, num_neurons, change_output, neurons_probs
+            layer_id, num_neurons, change_output
         )
 
 

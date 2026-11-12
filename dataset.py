@@ -15,10 +15,20 @@ from torch_geometric.datasets import TUDataset
 from transformers import GPT2Tokenizer
 
 import openml
-from openml_pytorch import GenericDataset
 from ucimlrepo import fetch_ucirepo 
 
-class DoubleMoon(DatasetInterface):
+class _SyntheticClassificationDataset(DatasetInterface):
+    def __getitem__(self, idx: int) -> object:
+        # Older processed datasets contain scalar tensors. Keep cached and new
+        # labels compatible with MLWiz's stratified splitter and metric callbacks.
+        features, target = super().__getitem__(idx)
+        return features, torch.as_tensor(target, dtype=torch.long).reshape(1)
+
+    def __iter__(self):
+        return (self[idx] for idx in range(len(self)))
+
+
+class DoubleMoon(_SyntheticClassificationDataset):
     def __init__(
         self,
         storage_folder: str,
@@ -84,7 +94,7 @@ class DoubleMoon(DatasetInterface):
         data_list = [
             (
                 torch.tensor(X[:, i]).to(torch.get_default_dtype()),
-                torch.tensor([y[i]]).long().long().squeeze(),
+                torch.tensor([y[i]]).long(),
             )
             for i in range(2 * n_samples)
         ]
@@ -92,7 +102,7 @@ class DoubleMoon(DatasetInterface):
         return data_list
 
 
-class Spiral(DatasetInterface):
+class Spiral(_SyntheticClassificationDataset):
     def __init__(
         self,
         storage_folder: str,
@@ -158,7 +168,7 @@ class Spiral(DatasetInterface):
         data_list = [
             (
                 torch.tensor(X[i, :]).to(torch.get_default_dtype()),
-                torch.tensor([y[i]]).long().squeeze(),
+                torch.tensor([y[i]]).long(),
             )
             for i in range(2 * n_samples)
         ]

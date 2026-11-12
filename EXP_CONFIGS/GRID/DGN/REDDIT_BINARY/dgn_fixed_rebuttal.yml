@@ -1,42 +1,42 @@
-# Telegram Bot
-telegram_config_file: telegram_config.yml
-
-
 # Dataset and Splits
-storage_folder: DATA
-dataset_class: dataset.REDDIT_BINARY
-data_splits_file:  DATA_SPLITS/REDDIT_BINARY/REDDIT_BINARY_outer10_inner1.splits
-
+dataset:
+  storage_folder: DATA
+  dataset_class: dataset.REDDIT_BINARY
+  data_splits_file:  DATA_SPLITS/REDDIT_BINARY/REDDIT_BINARY_outer10_inner1.splits
 
 # Hardware
-device:  cuda
-max_cpus:  64
-max_gpus: 4
-gpus_per_task:  0.5
-# gpus_subset: 1,2
-
+resources:
+  device:  cuda
+  max_cpus:  64
+  max_gpus: 4
+  gpus_per_task:  0.5
+  # gpus_subset: 1,2
 
 # Data Loading
-dataset_getter: mlwiz.data.provider.DataProvider
-data_loader:
-  class_name: torch_geometric.loader.DataLoader
-  args:
-    num_workers : 1
-    pin_memory: True
-
+data_loading:
+  dataset_getter: mlwiz.data.provider.DataProvider
+  data_loader:
+    class_name: torch_geometric.loader.DataLoader
+    args:
+      num_workers : 1
+      pin_memory: True
 
 # Reproducibility
-seed: 42
+reproducibility:
+  seed: 42
 
 # Experiment
-result_folder: RESULTS/GRID/DGN/
-exp_name: dgn_fixed
-experiment: mlwiz.experiment.Experiment
-higher_results_are_better: True  # classification
-evaluate_every: 1
-model_selection_training_runs: 1
-risk_assessment_training_runs: 10
+experiment:
+  result_folder: RESULTS/GRID/DGN/
+  exp_name: dgn_fixed
+  experiment: mlwiz.experiment.Experiment
+  higher_results_are_better: True  # classification
+  evaluate_every: 1
+  model_selection_training_runs: 1
+  risk_assessment_training_runs: 10
 
+  # Telegram Bot
+  # telegram_config_file: telegram_config.yml
 
 grid:
   
