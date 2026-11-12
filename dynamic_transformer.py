@@ -261,14 +261,14 @@ class DynamicTransformer(DynamicArchitecture):
         if change_output:
             assert layer_id < self.n_layers * 2
             if layer_id >= self.n_layers:
-                return self.decoder.change_shape(
+                self.decoder.change_shape(
                     layer_id % self.n_layers,
                     num_neurons,
                     change_output,
                     neurons_probs,
                 )
             else:
-                return self.encoder.change_shape(
+                self.encoder.change_shape(
                     layer_id % self.n_layers,
                     num_neurons,
                     change_output,
@@ -278,7 +278,7 @@ class DynamicTransformer(DynamicArchitecture):
             # we are already taking care of l+1 inside the transformer
             # since the layer index here is used to refer to either the encoder
             # or decoder layer, and not the internal FFN
-            return 0
+            pass
 
     def forward(self, src_trg, qW_probs, return_activations: bool = False):
         assert len(qW_probs) == self.n_layers * 2

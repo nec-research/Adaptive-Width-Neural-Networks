@@ -109,7 +109,7 @@ class EncoderLayer(nn.Module):
             for weight initialization
         :return:
         """
-        return self.ffn.change_shape(
+        self.ffn.change_shape(
             layer_id, num_neurons, change_output
         )
 
@@ -206,10 +206,10 @@ class Encoder(nn.Module):
         assert change_output
 
         # assume the ffn of each layer has only 1 hidden layer
-        changed = self.layers[layer_id].change_shape(
+        self.layers[layer_id].change_shape(
             0, num_neurons, True, None
-        )
-        changed += self.layers[layer_id].change_shape(
+        )  # unused anyhow
+
+        self.layers[layer_id].change_shape(
             1, num_neurons, False, None
-        )
-        return changed
+        )  # unused anyhow
