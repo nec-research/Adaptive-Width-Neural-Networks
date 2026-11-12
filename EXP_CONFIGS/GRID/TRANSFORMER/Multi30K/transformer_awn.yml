@@ -161,4 +161,8 @@ grid:
         checkpoint: True  # store the best checkpoint
 
   # Plotter of metrics
-  plotter: mlwiz.training.callback.plotter.Plotter
+  plotter:
+    class_name: mlwiz.training.callback.plotter.Plotter
+    args:
+      store_every_N_epochs: 1
+      store_every_N_steps: 1
