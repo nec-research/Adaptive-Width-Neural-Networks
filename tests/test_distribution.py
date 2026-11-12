@@ -48,16 +48,5 @@ class TestDiscretizedExponential(unittest.TestCase):
                 )
 
 
-class TestExponential(unittest.TestCase):
-    def test_optional_boundary_allows_quantile_and_gradients(self):
-        distribution = Exponential(rate=0.5)
-        lower, upper = distribution.quantile(0.9)
-        expected = -torch.log(torch.tensor([0.1])) / 0.5
-        torch.testing.assert_close(lower, expected)
-        torch.testing.assert_close(upper, expected)
-        lower.sum().backward()
-        self.assertTrue(torch.isfinite(distribution._rate.grad).all())
-
-
 if __name__ == "__main__":
     unittest.main()

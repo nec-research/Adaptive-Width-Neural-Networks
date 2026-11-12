@@ -122,19 +122,6 @@ uv run mlwiz-exp --config-file EXP_CONFIGS/BO/CNN/CIFAR10/resnet20_fixed.yml --d
 - Example: `EXP_CONFIGS/GRID/MLP/SpiralHard/mlp_awn.yml` writes to `RESULTS/MLP/SpiralHard`.
 - Seeds are set in configs (`reproducibility.seed: 42`) for reproducibility.
 
-## Validation
-
-```bash
-OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 MPLBACKEND=Agg uv run --locked python -m unittest discover -s tests -v
-```
-
-The checks load all experiment/data configs and saved splits, run the data and
-experiment CLIs on short SpiralHard experiments (fixed, AWN, random, local search,
-and Bayesian search), and train each CNN, RNN, DGN, and Transformer variant for
-one epoch on synthetic CPU batches. Full dataset downloads, long experiment
-grids, and multi-GPU/multi-machine execution are not covered by these smoke tests.
-The random-search CLI check exercises local Ray workers without `--debug`.
-
 Graph splits now live directly under `DATA_SPLITS/NCI1` and
 `DATA_SPLITS/REDDIT_BINARY`, matching the data-preparation output paths. The
 unused `SigmoidDistribution` option was removed from the distribution study
