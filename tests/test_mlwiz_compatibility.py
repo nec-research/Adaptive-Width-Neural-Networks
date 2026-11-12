@@ -61,16 +61,13 @@ class TestRepositoryConfigs(unittest.TestCase):
                 if "random" in search.configs_dict:
                     self.assertEqual(len(search.hparams), search.budget)
 
-    def test_cached_scalar_targets_can_still_be_split(self):
+    def test_generated_targets_can_be_split(self):
         from dataset import DoubleMoon
 
         with tempfile.TemporaryDirectory(prefix="awn-labels-") as folder:
             dataset = DoubleMoon(storage_folder=folder, num_samples=2)
-            old_samples = [(x, y.squeeze()) for x, y in dataset]
-            dataset._save_dataset(old_samples, dataset.dataset_filepath)
-            restored = DoubleMoon(storage_folder=folder, num_samples=2)
             splitter = Splitter(1, 1, 42, stratify=True, shuffle=True)
-            has_targets, targets = splitter.get_targets(restored)
+            has_targets, targets = splitter.get_targets(dataset)
             self.assertTrue(has_targets)
             self.assertEqual(targets.tolist(), [0, 0, 1, 1])
 
@@ -210,6 +207,15 @@ class TestModelFamilies(unittest.TestCase):
                         for metrics in results:
                             for value in metrics.values():
                                 self.assertTrue(torch.isfinite(torch.as_tensor(value)).all())
+                        if kind == "awn":
+                            for layer_id, distribution in enumerate(model.variational_Ws):
+                                width = int(distribution.compute_truncation_number()) + 1
+                                changed = model.dyn_model.change_shape(layer_id, width, True)
+                                self.assertIsInstance(changed, int)
+                                self.assertGreater(changed, 0)
+                                self.assertEqual(
+                                    model.dyn_model.change_shape(layer_id, width, True), 0,
+                                )
 
 
 if __name__ == "__main__":

@@ -75,6 +75,11 @@ uv run mlwiz-data --config-file DATA_CONFIGS/config_REDDIT-BINARY.yml
 
 We already provide precomputed data splits in the `DATA_SPLITS` folder.
 
+If `mlwiz-data` reports that zero-dimensional targets cannot be concatenated,
+regenerate the affected cached synthetic dataset (`DoubleMoon`, `Spiral`, or
+`SpiralHard`). New samples store each label as a one-element tensor; existing
+processed files are loaded as stored.
+
 ### 2. Run AWN vs fixed baselines
 
 `--debug` runs sequentially (single process). Without `--debug`, MLWiz uses Ray for parallel execution.

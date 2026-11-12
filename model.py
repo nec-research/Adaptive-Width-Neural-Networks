@@ -856,22 +856,18 @@ class AWN(ModelInterface):
             # from l=1 onwards.
 
             # change output of current layer
-            output_changed = self.dyn_model.change_shape(
+            changed += self.dyn_model.change_shape(
                 layer_id=l,
                 num_neurons=num_neurons,
                 change_output=True,
             )
-            # Composite backbones do not report a change count. Refresh their
-            # optimizer references conservatively, as parameters may be replaced.
-            changed += 1 if output_changed is None else output_changed
 
             # change input of next layer
-            input_changed = self.dyn_model.change_shape(
+            changed += self.dyn_model.change_shape(
                 layer_id=l + 1,
                 num_neurons=num_neurons,
                 change_output=False,
             )
-            changed += 1 if input_changed is None else input_changed
         
         if changed > 0:
             new_parameters = {k: v for k, v in self.named_parameters()}
