@@ -276,7 +276,7 @@ class Exponential(ContinuousDistribution):
     def rate(self) -> torch.Tensor:
         r = softplus(self._rate) + 1e-32
 
-        if self.boundary > r:
+        if self.boundary is not None and self.boundary > r:
             self._rate.data = inv_softplus(self.boundary.data)
             r = softplus(self._rate) + 1e-32
             return r

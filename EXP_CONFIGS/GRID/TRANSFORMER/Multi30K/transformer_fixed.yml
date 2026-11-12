@@ -1,42 +1,42 @@
-# Telegram Bot
-# telegram_config_file: telegram_config.yml
-
-
 # Dataset and Splits
-storage_folder: DATA
-dataset_class: dataset.Multi30K
-data_splits_file:  DATA_SPLITS//Multi30K/Multi30K_outer1_inner1.splits
-
+dataset:
+  storage_folder: DATA
+  dataset_class: dataset.Multi30K
+  data_splits_file:  DATA_SPLITS//Multi30K/Multi30K_outer1_inner1.splits
 
 # Hardware
-device:  cuda
-max_cpus:  64
-max_gpus: 4
-gpus_per_task:  1
-# gpus_subset: 0,1,2,3,4,5,6,7,8
-
+resources:
+  device:  cuda
+  max_cpus:  64
+  max_gpus: 4
+  gpus_per_task:  1
+  # gpus_subset: 0,1,2,3,4,5,6,7,8
 
 # Data Loading
-dataset_getter: mlwiz.data.provider.DataProvider
-data_loader:
-  class_name: torch.utils.data.DataLoader  # dataset is not a graph, but we use general PyG data utilities
-  args:
-    num_workers : 4
-    pin_memory: True
-
+data_loading:
+  dataset_getter: mlwiz.data.provider.DataProvider
+  data_loader:
+    class_name: torch.utils.data.DataLoader  # dataset is not a graph, but we use general PyG data utilities
+    args:
+      num_workers : 4
+      pin_memory: True
 
 # Reproducibility
-seed: 42
+reproducibility:
+  seed: 42
 
 # Experiment
-result_folder: RESULTS/GRID/TRANSFORMER/
-exp_name: transformer_fixed
-experiment: mlwiz.experiment.Experiment
-higher_results_are_better: False  # classification loss
-evaluate_every: 1
-model_selection_training_runs: 1
-risk_assessment_training_runs: 10
+experiment:
+  result_folder: RESULTS/GRID/TRANSFORMER/
+  exp_name: transformer_fixed
+  experiment: mlwiz.experiment.Experiment
+  higher_results_are_better: False  # classification loss
+  evaluate_every: 1
+  model_selection_training_runs: 1
+  risk_assessment_training_runs: 10
 
+  # Telegram Bot
+  # telegram_config_file: telegram_config.yml
 
 grid:
 
@@ -76,7 +76,7 @@ grid:
     - class_name: mlwiz.training.callback.scheduler.MetricScheduler
       args:
         use_loss: True
-        monitor: training_Multiclass Classification
+        monitor: training_main_loss
         scheduler_class_name: torch.optim.lr_scheduler.ReduceLROnPlateau
         factor: 0.9
 

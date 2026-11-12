@@ -768,7 +768,7 @@ class DynamicResNet20(DynamicArchitecture):
             for weight initialization
         :return:
         """
-        self.fc.change_shape(layer_id, num_neurons, change_output)
+        return self.fc.change_shape(layer_id, num_neurons, change_output)
 
     def forward(
         self,
@@ -884,13 +884,17 @@ class DynamicRNN(DynamicArchitecture):
         # PATCH
         half = self.num_layers // 2
         if layer_id < (self.num_layers // 2) and change_output:
-            self.input_to_hidden.change_shape(layer_id, num_neurons, True)
-            self.input_to_hidden.change_shape(layer_id+1, num_neurons, False)
+            return (
+                self.input_to_hidden.change_shape(layer_id, num_neurons, True)
+                + self.input_to_hidden.change_shape(layer_id+1, num_neurons, False)
+            )
         elif layer_id < self.num_layers and change_output:
-            self.hidden_to_hidden.change_shape(layer_id%half, num_neurons, True)
-            self.hidden_to_hidden.change_shape((layer_id%half)+1, num_neurons, False)
+            return (
+                self.hidden_to_hidden.change_shape(layer_id%half, num_neurons, True)
+                + self.hidden_to_hidden.change_shape((layer_id%half)+1, num_neurons, False)
+            )
         else:
-            pass
+            return 0
 
 
 class ModGINConv(GINConv):
@@ -1031,20 +1035,22 @@ class DynamicDGN(DynamicArchitecture):
             assert layer_id < len(self)
             if layer_id == 0:
                 # assume the ffn of each layer has only 1 hidden layer
-                self.layers[layer_id].change_shape(0, num_neurons, True)
+                changed = self.layers[layer_id].change_shape(0, num_neurons, True)
 
-                self.layers[layer_id].change_shape(1, num_neurons, False)
+                changed += self.layers[layer_id].change_shape(1, num_neurons, False)
             else:
                 # assume the ffn of each layer has only 1 hidden layer
-                self.layers[layer_id].nn.change_shape(0, num_neurons, True)
+                changed = self.layers[layer_id].nn.change_shape(0, num_neurons, True)
 
-                self.layers[layer_id].nn.change_shape(1, num_neurons, False)
+                changed += self.layers[layer_id].nn.change_shape(1, num_neurons, False)
+
+            return changed
 
         else:
             # we are already taking care of l+1 inside the transformer
             # since the layer index here is used to refer to either the encoder
             # or decoder layer, and not the internal FFN
-            pass
+            return 0
 
     def forward(
         self,

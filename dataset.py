@@ -84,7 +84,7 @@ class DoubleMoon(DatasetInterface):
         data_list = [
             (
                 torch.tensor(X[:, i]).to(torch.get_default_dtype()),
-                torch.tensor([y[i]]).long().long().squeeze(),
+                torch.tensor([y[i]]).long(),
             )
             for i in range(2 * n_samples)
         ]
@@ -158,7 +158,7 @@ class Spiral(DatasetInterface):
         data_list = [
             (
                 torch.tensor(X[i, :]).to(torch.get_default_dtype()),
-                torch.tensor([y[i]]).long().squeeze(),
+                torch.tensor([y[i]]).long(),
             )
             for i in range(2 * n_samples)
         ]

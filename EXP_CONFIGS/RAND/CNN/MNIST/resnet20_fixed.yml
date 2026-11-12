@@ -1,45 +1,45 @@
-# Telegram Bot
-# telegram_config_file: telegram_config.yml
-
-
 # Dataset and Splits
-storage_folder: DATA
-dataset_class: dataset.MNIST
-data_splits_file:  DATA_SPLITS//MNIST/MNIST_outer1_inner1.splits
-
+dataset:
+  storage_folder: DATA
+  dataset_class: dataset.MNIST
+  data_splits_file:  DATA_SPLITS//MNIST/MNIST_outer1_inner1.splits
 
 # Hardware
-device:  cuda
-max_cpus:  64
-max_gpus: 3
-gpus_per_task:  0.5
-# gpus_subset: 0,1,2,3,4,5,6,7,8
-
+resources:
+  device:  cuda
+  max_cpus:  64
+  max_gpus: 3
+  gpus_per_task:  0.5
+  # gpus_subset: 0,1,2,3,4,5,6,7,8
 
 # Data Loading
-dataset_getter: mlwiz.data.provider.DataProvider
-data_loader:
-  class_name: torch.utils.data.DataLoader  # dataset is not a graph, but we use general PyG data utilities
-  args:
-    num_workers : 2
-    pin_memory: True
-
+data_loading:
+  dataset_getter: mlwiz.data.provider.DataProvider
+  data_loader:
+    class_name: torch.utils.data.DataLoader  # dataset is not a graph, but we use general PyG data utilities
+    args:
+      num_workers : 2
+      pin_memory: True
 
 # Reproducibility
-seed: 42
+reproducibility:
+  seed: 42
 
 # Experiment
-result_folder: RESULTS/RAND/CNN/
-exp_name: resnet20_fixed
-experiment: mlwiz.experiment.Experiment
-higher_results_are_better: True  # classification
-evaluate_every: 1
-model_selection_training_runs: 1
-risk_assessment_training_runs: 10
+experiment:
+  result_folder: RESULTS/RAND/CNN/
+  exp_name: resnet20_fixed
+  experiment: mlwiz.experiment.Experiment
+  higher_results_are_better: True  # classification
+  evaluate_every: 1
+  model_selection_training_runs: 1
+  risk_assessment_training_runs: 10
 
+  # Telegram Bot
+  # telegram_config_file: telegram_config.yml
 
-num_samples: 5
 random:
+  budget: 5
 
   model: model.ResNet20
   checkpoint: True
