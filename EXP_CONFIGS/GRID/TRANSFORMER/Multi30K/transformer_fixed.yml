@@ -1,6 +1,6 @@
 # Dataset and Splits
 dataset:
-  storage_folder: DATA
+  storage_folder: DATA/Multi30K_pinned
   dataset_class: dataset.Multi30K
   data_splits_file:  DATA_SPLITS//Multi30K/Multi30K_outer1_inner1.splits
 
@@ -28,7 +28,7 @@ reproducibility:
 # Experiment
 experiment:
   result_folder: RESULTS/GRID/TRANSFORMER/
-  exp_name: transformer_fixed
+  exp_name: transformer_fixed_token_ce
   experiment: mlwiz.experiment.Experiment
   higher_results_are_better: False  # classification loss
   evaluate_every: 1
@@ -67,7 +67,7 @@ grid:
     - class_name: mlwiz.training.callback.optimizer.Optimizer
       args:
         optimizer_class_name: torch.optim.Adam
-        lr: 0.01
+        lr: 0.0001
         weight_decay: 0.0005
         eps: 0.000000005
 
@@ -84,7 +84,7 @@ grid:
   loss:
     - class_name: metric.MachineTranslationMulticlassClassification
       args:
-        accumulate_over_epoch: False  # reduces memory consumption
+        accumulate_over_epoch: True  # token-weighted CE; stores scalar losses
 
   # Score metric
   scorer:
@@ -92,7 +92,7 @@ grid:
       args:
         # TODO CHANGE TO BLEU
 #        main_scorer: metric.BLEU
-        accumulate_over_epoch: False   # reduces memory consumption
+        accumulate_over_epoch: True  # token-weighted CE
         main_scorer: metric.MachineTranslationMulticlassClassification
 
 

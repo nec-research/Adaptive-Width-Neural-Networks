@@ -37,6 +37,21 @@ colors = {
 colors[None] = colors["END"]
 
 
+class WidthAdam(torch.optim.Adam):
+    """Apply Adam weight decay to network weights, excluding width distributions."""
+
+    def __init__(self, params, **kwargs):
+        params = list(params)  # MLWiz supplies (name, parameter) pairs.
+        super().__init__(
+            [
+                {"params": [(n, p) for n, p in params if not n.startswith("variational_Ws.")]},
+                {"params": [(n, p) for n, p in params if n.startswith("variational_Ws.")],
+                 "weight_decay": 0.0},
+            ],
+            **kwargs,
+        )
+
+
 def _map_optimized_params(optimizer, parameters, old_params=None):
     """
     Establishes a mapping between a list of named parameters and the parameters

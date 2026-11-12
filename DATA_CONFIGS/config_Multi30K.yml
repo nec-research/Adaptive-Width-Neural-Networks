@@ -7,13 +7,15 @@ splitter:
     seed: 42
     stratify: False
     shuffle: False
-    inner_val_ratio: 0.3333333333333333333  # ~1000 samples out of 30k
-    outer_val_ratio: 0.0322580645161290323  # ~1000 examples out of 31k
-    test_ratio: 0.0322580645161290323  # ~1000 examples out of 31k
+    inner_val_ratio: 0.03378423402412208  # official 1014 validation examples
+    outer_val_ratio: 0.03378423402412208  # same validation set for final training
+    test_ratio: 0.03224350293415877  # official 1000 test examples
 dataset:
   class_name: dataset.Multi30K
   args:
-    storage_folder:  DATA/
+    storage_folder: DATA/Multi30K_pinned
     max_len: 128  # for padding and truncation
+    dataset_revision: 4589883f3d09d4ef6361784e03f0ead219836469
+    tokenizer_revision: 607a30d783dfa663caf39e06633721c8d4cfcd7e
 #    transform_train: transform.
 #    transform_eval: transform.
