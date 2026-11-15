@@ -59,11 +59,25 @@ class TestOriginalPreservation:
         assert os.path.getsize(bench_json) > 10000
 
     def test_original_code_path_when_extension_not_selected(self):
-        """When enable_learned_ordering=False, neuron_ranker must be None."""
+        """The baseline AWN has no built-in ordering component."""
         cfg = get_awn_config(n_obs=500, enable_learned_ordering=False)
         model = AWN(dim_input_features=2, dim_target=2, config=cfg)
-        assert model.neuron_ranker is None
-        assert model.ranking_loss_weight == 0.0
+        assert not hasattr(model, "neuron_ranker")
+        assert not hasattr(model, "ranking_loss_weight")
+        assert len(model.variational_Ws) == 1
+
+    def test_skip_update_forward_keeps_width_and_runs(self):
+        """Validation/latency inference must not reference undefined widths."""
+        cfg = get_awn_config(n_obs=500, enable_learned_ordering=False)
+        model = AWN(dim_input_features=2, dim_target=2, config=cfg)
+        x = torch.randn(8, 2)
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+        model.torch_optimizer = optimizer
+        width_before = model.dyn_model.get_layer(0).weight.shape[0]
+        with torch.no_grad():
+            out = model(x, skip_update=True)[0]
+        assert out.shape == (8, 2)
+        assert model.dyn_model.get_layer(0).weight.shape[0] == width_before
 
     def test_git_diff_preservation(self):
         """Ensure no core AWN algorithms or configs have been deleted in git status."""
