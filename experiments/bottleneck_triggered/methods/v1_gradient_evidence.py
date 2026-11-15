@@ -44,102 +44,83 @@ class V1GradientEvidence(BaseEvidenceProvider):
             raise ValueError("V1GradientEvidence requires a training dataloader.")
 
         t0 = time.perf_counter()
-        model.eval()  # Do not update BatchNorm / Dropout during evidence gathering
-
-        # Preserve any existing parameter gradients so we don't destroy active state
-        saved_grads = {p: p.grad.clone() if p.grad is not None else None for p in model.parameters()}
-        model.zero_grad()
-
-        accumulated_scores = torch.zeros(width, device=device)
-        batches_processed = 0
-
-        # Loss function for gradient evaluation on training batches
-        loss_fn = nn.CrossEntropyLoss()
-
-        for batch_idx, (x_b, y_b) in enumerate(dataloader):
-            if batch_idx >= self.num_batches:
-                break
-
-            x_b = x_b.to(device)
-            y_b = y_b.to(device).squeeze().long()
-            bsz = x_b.shape[0]
-
-            t_pass0 = time.perf_counter()
-
-            # Hook into activations of layer_id
-            act_container = {}
-
-            if hasattr(model, "dyn_model"):
-                curr_layer = model.dyn_model.get_layer(layer_id)
-                # Forward pass tracking activations
-                pre_h = curr_layer(x_b)
-                h = model.dyn_model.activation(pre_h)
-            elif hasattr(model, "fc1") and layer_id == 0:
-                pre_h = model.fc1(x_b)
-                h = model.activation(pre_h)
-            else:
-                raise ValueError(f"Unsupported model architecture: {type(model)}")
-
-            W_eff = min(width, h.shape[1])
-            h_sub = h[:, :W_eff]
-            h_sub.retain_grad()
-
-            # Forward remaining layers
-            if hasattr(model, "dyn_model"):
-                next_layer = model.dyn_model.get_layer(layer_id + 1)
-                w_next = next_layer.weight[:, :W_eff]
-                logits = h_sub @ w_next.T
-                if next_layer.bias is not None:
-                    logits = logits + next_layer.bias
-            elif hasattr(model, "fc2") and layer_id == 0:
-                w_next = model.fc2.weight[:, :W_eff]
-                logits = h_sub @ w_next.T
-                if model.fc2.bias is not None:
-                    logits = logits + model.fc2.bias
-            else:
-                raise ValueError("Architecture forwarding not supported")
-
-            loss = loss_fn(logits, y_b)
-            loss.backward()
-
-            t_pass = time.perf_counter() - t_pass0
-
-            # Collect |h * grad|
-            if h_sub.grad is not None:
-                grad = h_sub.grad.detach()
-                taylor_signal = (h_sub.detach() * grad).abs().mean(dim=0)  # [W_eff]
-                accumulated_scores[:W_eff] += taylor_signal
-            else:
-                # Fallback if gradient is missing
-                accumulated_scores[:W_eff] += 1e-4
-
-            batches_processed += 1
-
-            if ledger is not None:
-                param_count = sum(p.numel() for p in model.parameters())
-                ledger.record_evidence_pass(batch_size=bsz, param_count=param_count, is_backward=False, duration_sec=t_pass / 2.0)
-                ledger.record_evidence_pass(batch_size=bsz, param_count=param_count, is_backward=True, duration_sec=t_pass / 2.0)
-
-            # Ensure gradients are wiped between evidence batches
-            model.zero_grad()
-
-        # Restore original parameter gradients
-        for p, g in saved_grads.items():
-            p.grad = g
-
-        if batches_processed > 0:
-            scores = accumulated_scores / float(batches_processed)
+        was_training = model.training
+        # Capture the exact hidden representation consumed by the next
+        # linear layer. In AWN this includes its position-dependent qW gate,
+        # unlike a surrogate fc1 -> activation -> fc2 computation.
+        if hasattr(model, "dyn_model"):
+            next_layer = model.dyn_model.get_layer(layer_id + 1)
+            is_awn = True
+        elif hasattr(model, "fc1") and hasattr(model, "fc2") and layer_id == 0:
+            next_layer = model.fc2
+            is_awn = False
         else:
-            scores = accumulated_scores
+            raise ValueError(f"Unsupported model architecture: {type(model)}")
 
-        # Clean non-finite entries
+        captured = {}
+
+        def capture_input(_module, inputs):
+            captured["activation"] = inputs[0]
+
+        hook = next_layer.register_forward_pre_hook(capture_input)
+        accumulated_scores = torch.zeros(width, device=device)
+        samples_processed = 0
+        loss_fn = nn.CrossEntropyLoss()
+        try:
+            model.eval()
+            with torch.enable_grad():
+                for batch_idx, (x_b, y_b) in enumerate(dataloader):
+                    if batch_idx >= self.num_batches:
+                        break
+
+                    x_b = x_b.to(device)
+                    y_b = y_b.to(device).reshape(-1).long()
+                    bsz = x_b.shape[0]
+
+                    t_pass0 = time.perf_counter()
+                    captured.clear()
+                    # AWN needs skip_update to avoid resizing parameters while
+                    # measuring evidence; its forward still applies qW gating.
+                    if is_awn:
+                        outs = model(x_b, skip_update=True)
+                        logits = outs[0]
+                    else:
+                        logits = model(x_b)
+
+                    if "activation" not in captured:
+                        raise RuntimeError("Failed to capture hidden activation")
+                    h = captured["activation"]
+                    w_eff = min(width, h.shape[-1])
+                    if w_eff <= 0:
+                        raise ValueError("Cannot rank neurons in an empty layer")
+
+                    loss = loss_fn(logits, y_b)
+                    (grad_h,) = torch.autograd.grad(loss, h)
+                    # CE is batch-averaged; undo that factor to aggregate
+                    # consistently by the number of examples across batches.
+                    contribution = (h.detach()[:, :w_eff] * grad_h.detach()[:, :w_eff]).abs()
+                    accumulated_scores[:w_eff] += contribution.sum(dim=0) * bsz
+                    samples_processed += bsz
+
+                    if ledger is not None:
+                        duration = time.perf_counter() - t_pass0
+                        param_count = sum(p.numel() for p in model.parameters())
+                        ledger.record_evidence_pass(
+                            batch_size=bsz, param_count=param_count,
+                            is_backward=False, duration_sec=duration / 2.0,
+                        )
+                        ledger.record_evidence_pass(
+                            batch_size=bsz, param_count=param_count,
+                            is_backward=True, duration_sec=duration / 2.0,
+                        )
+        finally:
+            hook.remove()
+            model.train(was_training)
+
+        scores = accumulated_scores / max(1, samples_processed)
         scores = torch.nan_to_num(scores, nan=0.0, posinf=1e6, neginf=0.0)
 
-        # Layer normalization for numerical stability
-        std = scores.std() + 1e-8
-        mean = scores.mean()
-        normalized_scores = (scores - mean) / std
-        # Shift to positive domain
-        normalized_scores = normalized_scores - normalized_scores.min() + 1e-6
-
-        return normalized_scores
+        # Population std avoids NaN for a one-neuron layer.
+        std = scores.std(unbiased=False) + 1e-8
+        normalized = (scores - scores.mean()) / std
+        return normalized - normalized.min() + 1e-6
