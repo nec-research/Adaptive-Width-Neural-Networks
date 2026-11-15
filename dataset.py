@@ -399,6 +399,9 @@ class Multi30K(DatasetInterface):
         pre_transform: Optional[Callable] = None,
         **kwargs,
     ):
+        self.dataset_revision = kwargs.get(
+            "dataset_revision", "4589883f3d09d4ef6361784e03f0ead219836469"
+        )
         super().__init__(
             storage_folder,
             raw_dataset_folder,
@@ -407,7 +410,11 @@ class Multi30K(DatasetInterface):
             pre_transform,
             **kwargs,
         )
-        self.tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
+        self.tokenizer = GPT2Tokenizer.from_pretrained(
+            "gpt2", revision=kwargs.get(
+                "tokenizer_revision", "607a30d783dfa663caf39e06633721c8d4cfcd7e"
+            )
+        )
         self.max_len = kwargs["max_len"]
 
     @property
@@ -425,7 +432,7 @@ class Multi30K(DatasetInterface):
         list.
         """
 
-        dataset = load_dataset("bentrevett/multi30k")
+        dataset = load_dataset("bentrevett/multi30k", revision=self.dataset_revision)
 
         print("Processing training set...")
         train = [(d["en"], d["de"]) for d in dataset["train"]]
@@ -522,7 +529,7 @@ class Multi30K(DatasetInterface):
                 self.max_len - target.shape[0],
             ),
             mode="constant",
-            value=0,
+            value=-100,
         )
 
         # NOTE runtime preprocessing is handled by DataProvider

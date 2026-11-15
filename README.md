@@ -75,6 +75,15 @@ uv run mlwiz-data --config-file DATA_CONFIGS/config_REDDIT-BINARY.yml
 
 We already provide precomputed data splits in the `DATA_SPLITS` folder.
 
+Multi30K now uses pinned dataset/tokenizer revisions and the official
+29,000 / 1,014 / 1,000 train/validation/test boundaries for both inner and outer
+splits. Run its data-preparation command again to populate the separate
+`DATA/Multi30K_pinned` cache and save the pinned arguments. Both Transformer
+configs use learning rate `1e-4`, patience 250, and token-weighted cross-entropy
+excluding padded targets (`-100`); real token ID 0 remains valid. AWN's width
+parameters have zero weight decay. Results use new `*_token_ce` experiment names
+to avoid resuming runs scored with the previous padded loss.
+
 If `mlwiz-data` reports that zero-dimensional targets cannot be concatenated,
 regenerate the affected cached synthetic dataset (`DoubleMoon`, `Spiral`, or
 `SpiralHard`). New samples store each label as a one-element tensor; existing
@@ -105,6 +114,17 @@ uv run mlwiz-exp --config-file EXP_CONFIGS/GRID/TRANSFORMER/Multi30K/transformer
 uv run mlwiz-exp --config-file EXP_CONFIGS/GRID/DGN/REDDIT_BINARY/dgn_awn.yml --debug
 uv run mlwiz-exp --config-file EXP_CONFIGS/GRID/DGN/REDDIT_BINARY/dgn_fixed.yml --debug
 ```
+
+Launch both Multi30K grids concurrently on separate GPU pairs (two GPUs each):
+
+```bash
+uv run --locked python scripts/launch_transformers.py --fixed-gpus 0,1 --awn-gpus 2,3
+```
+
+The launcher writes separate `fixed.log` and `awn.log` files under
+`RESULTS/GRID/TRANSFORMER/launch_<PID>/` and waits for both runs. Add `--dry-run`
+to inspect GPU assignments without starting training. AWN uses
+`theta_prior_scale: 10`; this parameter remains inactive in the CE-only loss.
 
 ### 3. Optional search baselines
 

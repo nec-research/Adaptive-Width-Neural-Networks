@@ -6,3 +6,4 @@
 telegram_config.yml
 
 .venv/
+tensorboard_logs/

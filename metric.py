@@ -395,9 +395,8 @@ class MachineTranslationMulticlassClassification(MulticlassClassification):
         self, targets: torch.Tensor, *outputs: List[torch.Tensor]
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Returns output[0] as predictions and dataset targets.
-        Squeezes the first dimension of output and targets to get
-        single vector.
+        Returns real-token cross-entropies and targets for token-weighted
+        aggregation across batches. Padding is marked by target -100.
 
         Args:
             targets (:class:`torch.Tensor`): ground truth
@@ -411,7 +410,19 @@ class MachineTranslationMulticlassClassification(MulticlassClassification):
         output_reshape = outputs.contiguous().view(-1, outputs.shape[-1])
         targets = targets.contiguous().view(-1)
 
-        return output_reshape, targets
+        # Accumulate scalar token losses, not vocabulary-sized logits. MLWiz
+        # concatenates these across batches, so their mean is token-weighted CE.
+        token_losses = torch.nn.functional.cross_entropy(
+            output_reshape, targets, ignore_index=-100, reduction="none"
+        )
+        valid = targets != -100
+        return token_losses[valid], targets[valid]
+
+    def compute_metric(
+        self, targets: torch.Tensor, predictions: torch.Tensor
+    ) -> torch.Tensor:
+        # An all-padding batch contributes zero loss and no tokens to the epoch.
+        return predictions.sum() / max(predictions.numel(), 1)
 
 
 # class BLEU(Metric):
