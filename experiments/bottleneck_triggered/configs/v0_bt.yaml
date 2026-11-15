@@ -1,0 +1,7 @@
+# V0-BT Configuration: Bottleneck-Triggered Weight-Based Evidence
+
+method_name: "V0-BT"
+evidence:
+  provider: "V0WeightEvidence"
+  formula: "S_j = ||W_j^{in}||_2 * ||W_j^{out}||_2"
+  requires_data: false

@@ -911,6 +911,14 @@ class AWN(ModelInterface):
         if not skip_update:
             # first, determine if layers have to be adjusted in width
             widths = self.update_width()
+        else:
+            # Match the existing physical layer dimensions exactly: the learned
+            # quantile can change after the last optimizer step without an
+            # accompanying resize until the next regular forward pass.
+            widths = [
+                self.dyn_model.get_layer(l).weight.shape[0]
+                for l in range(self.num_hidden_layers)
+            ]
 
         # computes probability vector of variational distr. q(layer)
         self.qW_probs = [

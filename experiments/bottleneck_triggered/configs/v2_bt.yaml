@@ -1,0 +1,11 @@
+# V2-BT Configuration: Bottleneck-Triggered Graph-Based Evidence
+
+method_name: "V2-BT"
+evidence:
+  provider: "V2GraphEvidence"
+  formula: "S_j = 0.4 * p_j^{struct} + 0.3 * a_j^{in} + 0.3 * a_j^{out}"
+  edge_weight_threshold: 0.05
+  w_struct: 0.4
+  w_in: 0.3
+  w_out: 0.3
+  requires_data: false
