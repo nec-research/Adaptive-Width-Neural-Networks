@@ -106,10 +106,11 @@ def run_single_experiment(
     # 5. Resource ledger setup
     ledger = ResourceLedger(name=f"{method_name}_{dataset_name}_seed{seed}")
     if reference_ledger is not None:
-        # Enforce exact compute and step limits from the reference baseline
+        # Match the baseline's training updates and examples exactly.
+        # Evidence has genuine extra FLOPs; account for that cost rather than
+        # cutting a method's training short at a synthetic FLOP ceiling.
         ledger.max_optimizer_steps = reference_ledger.optimizer_steps
         ledger.max_examples_processed = reference_ledger.examples_processed_train
-        ledger.max_compute_proxy_flops = reference_ledger.compute_proxy_flops * 1.05  # allow 5% margin for accounting rounding
 
     # 6. Bottleneck detector & Permutation manager
     bt_cfg = bottleneck_config or {}
@@ -122,6 +123,12 @@ def run_single_experiment(
     )
     perm_mgr = PermutationManager(tolerance=tolerance)
     evidence_provider = create_evidence_provider(method_name, **(evidence_config or {}))
+    # An independent, non-shuffled loader makes evidence deterministic without
+    # consuming the RNG used for the main training loader's batch order.
+    evidence_loader = (
+        DataLoader(train_loader.dataset, batch_size=train_loader.batch_size, shuffle=False)
+        if isinstance(evidence_provider, V1GradientEvidence) else None
+    )
 
     # Tracking variables
     train_loss_history: List[float] = []
@@ -211,13 +218,12 @@ def run_single_experiment(
                     model=model,
                     layer_id=0,
                     width=eff_w,
-                    dataloader=train_loader,
+                    dataloader=evidence_loader if evidence_loader is not None else train_loader,
                     device=device,
                     ledger=ledger,
                 )
 
                 # 2. Permute layer with verification of full-width equivalence
-                t0_perm = time.perf_counter()
                 intervention_rec = perm_mgr.permute_layer(
                     model=model,
                     layer_id=0,
@@ -229,7 +235,6 @@ def run_single_experiment(
                     val_sample_y=sample_val_y,
                     criterion=nn.CrossEntropyLoss(),
                 )
-                t_perm = time.perf_counter() - t0_perm
                 ledger.record_reordering(
                     duration_sec=intervention_rec.reordering_duration_sec,
                     migration_duration_sec=intervention_rec.optimizer_migration_duration_sec,
