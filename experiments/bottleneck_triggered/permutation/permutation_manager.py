@@ -29,6 +29,8 @@ class InterventionRecord:
     new_permutation: List[int]
     max_output_diff: float
     loss_diff: float
+    awn_output_diff: float
+    awn_loss_diff: float
     reordering_duration_sec: float
     optimizer_migration_duration_sec: float
     timestamp: float = field(default_factory=time.time)
@@ -44,6 +46,8 @@ class InterventionRecord:
             "new_permutation": self.new_permutation,
             "max_output_diff": float(self.max_output_diff),
             "loss_diff": float(self.loss_diff),
+            "awn_output_diff": float(self.awn_output_diff),
+            "awn_loss_diff": float(self.awn_loss_diff),
             "reordering_duration_sec": round(self.reordering_duration_sec, 6),
             "optimizer_migration_duration_sec": round(self.optimizer_migration_duration_sec, 6),
             "timestamp": self.timestamp,
@@ -66,10 +70,9 @@ class PermutationManager:
         Ties are broken deterministically using the canonical neuron index.
         """
         w = scores.shape[0]
-        # Add deterministic small perturbation based on original index to break ties strictly
-        tie_breaker = torch.arange(w, device=scores.device, dtype=scores.dtype) * -1e-9
-        adjusted_scores = scores + tie_breaker
-        perm = torch.argsort(adjusted_scores, descending=True)
+        # Stable sorting preserves the original index for exactly equal scores,
+        # including float32 scores for which 1e-9 tie breakers are ineffective.
+        perm = torch.argsort(scores, descending=True, stable=True)
         return perm
 
     @staticmethod
@@ -130,9 +133,13 @@ class PermutationManager:
         w_dim = min(scores.shape[0], W_curr.shape[0])
         scores = scores[:w_dim]
 
-        # Compute pre-permutation outputs if validation sample provided
+        # Record both the function-preserving no-gate equivalence and the
+        # actual AWN output, whose index-dependent qW gate changes on reorder.
+        was_training = model.training
         out_before = None
+        awn_out_before = None
         loss_before = 0.0
+        awn_loss_before = 0.0
         if val_sample_x is not None:
             model.eval()
             with torch.no_grad():
@@ -146,6 +153,10 @@ class PermutationManager:
                     out_before = model(val_sample_x)
                 if val_sample_y is not None and criterion is not None:
                     loss_before = float(criterion(out_before, val_sample_y).item())
+                if hasattr(model, "dyn_model"):
+                    awn_out_before = model(val_sample_x, skip_update=True)[0].detach().clone()
+                    if val_sample_y is not None and criterion is not None:
+                        awn_loss_before = float(criterion(awn_out_before, val_sample_y).item())
 
         t0_reorder = time.perf_counter()
 
@@ -181,6 +192,8 @@ class PermutationManager:
         # Verify equivalence
         max_diff = 0.0
         loss_diff = 0.0
+        awn_output_diff = 0.0
+        awn_loss_diff = 0.0
         if val_sample_x is not None:
             model.eval()
             with torch.no_grad():
@@ -196,8 +209,14 @@ class PermutationManager:
                 if val_sample_y is not None and criterion is not None:
                     loss_after = float(criterion(out_after, val_sample_y).item())
                     loss_diff = abs(loss_after - loss_before)
+                if awn_out_before is not None:
+                    awn_out_after = model(val_sample_x, skip_update=True)[0]
+                    awn_output_diff = float((awn_out_after - awn_out_before).abs().max().item())
+                    if val_sample_y is not None and criterion is not None:
+                        awn_loss_diff = abs(float(criterion(awn_out_after, val_sample_y).item()) - awn_loss_before)
 
             if max_diff > self.tolerance:
+                model.train(was_training)
                 raise RuntimeError(
                     f"Full-width functional equivalence violation! Max diff {max_diff:.8f} > tolerance {self.tolerance}"
                 )
@@ -213,10 +232,13 @@ class PermutationManager:
             new_permutation=new_perm_list,
             max_output_diff=max_diff,
             loss_diff=loss_diff,
+            awn_output_diff=awn_output_diff,
+            awn_loss_diff=awn_loss_diff,
             reordering_duration_sec=t_reorder,
             optimizer_migration_duration_sec=t_opt,
         )
         self.intervention_history.append(record)
+        model.train(was_training)
         return record
 
     def _permute_optimizer_states(
