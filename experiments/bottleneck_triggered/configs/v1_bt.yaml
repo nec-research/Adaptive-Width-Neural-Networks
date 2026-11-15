@@ -1,0 +1,9 @@
+# V1-BT Configuration: Bottleneck-Triggered Gradient-Based Evidence
+
+method_name: "V1-BT"
+evidence:
+  provider: "V1GradientEvidence"
+  formula: "S_j = E_{(x,y)~B} [ | h_j(x) * (dL / dh_j(x)) | ]"
+  num_batches: 5
+  requires_data: true
+  layer_normalization: true

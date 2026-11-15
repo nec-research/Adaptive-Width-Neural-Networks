@@ -1,0 +1,52 @@
+# Common Configuration for Bottleneck-Triggered AWN Experiments
+
+# Model Architecture
+architecture:
+  model_class: "model.AWN"
+  num_hidden_layers: 1
+  num_hidden_neurons: 256
+  quantile: 0.9
+  theta_prior_scale: 1.0
+  alpha_prior_mean: 0.01
+  alpha_prior_scale: 0.01
+  distribution:
+    base: "distribution.Exponential"
+    rate: 0.01
+    boundary: 0.0005
+
+# Training Hyperparameters
+training:
+  optimizer: "Adam"
+  lr: 0.01
+  weight_decay: 0.0
+  loss: "metric.ELBO_Classification"
+
+# Bottleneck Detection Policy (Shared across V0-BT, V1-BT, V2-BT)
+bottleneck_detector:
+  plateau_window: 5
+  min_relative_improvement: 0.005
+  patience: 3
+  min_progress_epochs: 10
+  min_interval_between_interventions: 10
+  eps: 1.0e-8
+
+# Dataset Specific Training Budgets (derived from paper Table 1 baseline)
+datasets:
+  DoubleMoon:
+    epochs: 30
+    batch_size: 32
+    n_obs: 2000
+    fixed_width: 8
+  Spiral:
+    epochs: 50
+    batch_size: 128
+    n_obs: 2000
+    fixed_width: 16
+  SpiralHard:
+    epochs: 50
+    batch_size: 128
+    n_obs: 2000
+    fixed_width: 32
+
+# Experimental Protocol Seeds
+seeds: [42, 123, 456, 789, 1000]
