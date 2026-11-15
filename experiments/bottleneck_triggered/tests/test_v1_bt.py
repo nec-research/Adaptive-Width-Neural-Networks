@@ -88,6 +88,17 @@ class TestV1BT:
         perm = PermutationManager.compute_permutation_from_scores(scores)
         assert PermutationManager.validate_permutation(perm, 4)
 
+    def test_evidence_restores_original_training_mode(self):
+        model = DummyTwoLayerNet()
+        model.train()
+        x = torch.randn(8, 2)
+        y = torch.randint(0, 2, (8,))
+        loader = DataLoader(TensorDataset(x, y), batch_size=4)
+        _ = V1GradientEvidence(num_batches=1).compute_neuron_scores(
+            model, layer_id=0, width=4, dataloader=loader
+        )
+        assert model.training
+
     def test_reproducibility_with_identical_inputs(self):
         """Same model state and data batches produce identical scores."""
         torch.manual_seed(42)
