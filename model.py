@@ -911,6 +911,9 @@ class AWN(ModelInterface):
         if not skip_update:
             # first, determine if layers have to be adjusted in width
             widths = self.update_width()
+        else:
+            # Evaluation must still define widths when layer resizing is skipped.
+            widths = [w.compute_truncation_number() for w in self.variational_Ws]
 
         # computes probability vector of variational distr. q(layer)
         self.qW_probs = [
