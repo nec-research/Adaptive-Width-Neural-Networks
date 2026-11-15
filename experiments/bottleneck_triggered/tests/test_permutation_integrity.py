@@ -107,6 +107,28 @@ class TestPermutationIntegrity:
 
         assert rec.max_output_diff < 1e-5
         assert rec.loss_diff < 1e-5
+        # AWN's real index-dependent qW gate is *not* generally invariant.
+        assert rec.awn_output_diff >= 0.0
+        assert model.training  # permutation must restore the caller's mode
+
+    def test_awn_real_gating_change_is_reported(self):
+        """Physical reordering is not a pure symmetry for AWN's positional gates."""
+        torch.manual_seed(37)
+        cfg = get_awn_config(n_obs=100, enable_learned_ordering=False)
+        model = AWN(dim_input_features=2, dim_target=2, config=cfg)
+        x = torch.randn(16, 2)
+        width = model.dyn_model.get_layer(0).weight.shape[0]
+        scores = torch.arange(width, dtype=torch.float32)
+        rec = PermutationManager().permute_layer(
+            model, layer_id=0, scores=scores, val_sample_x=x
+        )
+        assert rec.max_output_diff < 1e-4
+        assert rec.awn_output_diff > 1e-7
+
+    def test_ties_follow_original_indices_in_float32(self):
+        scores = torch.tensor([2.0, 2.0, 1.0, 2.0], dtype=torch.float32)
+        perm = PermutationManager.compute_permutation_from_scores(scores)
+        assert perm.tolist() == [0, 1, 3, 2]
 
     def test_10_prefix_masks_select_intended_neurons_after_permutation(self):
         """Higher scoring neurons are placed in prefix indices 0..k-1."""
