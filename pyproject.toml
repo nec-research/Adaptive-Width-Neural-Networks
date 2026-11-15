@@ -1,0 +1,30 @@
+[project]
+name = "adaptive-width-neural-networks"
+version = "0.1.0"
+description = "Experiments for Adaptive Width Neural Networks"
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+license = { file = "LICENSE.txt" }
+dependencies = [
+    "matplotlib",
+    "seaborn",
+    "numpy",
+    "jupyter",
+    "scikit-learn",
+    "torch>=2.5.0",
+    "torchvision>=0.18.1",
+    "torch-geometric>=2.6.0",
+    "mlwiz>=1.7.8,<1.8",
+    "scikit-optimize>=0.10.2",
+    "datasets>=3.0.0,<4",
+    "transformers>=4.45.2,<5",
+    "tokenizers",
+    "openml",
+    "ucimlrepo",
+    "h5py",
+    "openml-pytorch",
+    "gpustat",
+]
+
+[tool.uv]
+package = false

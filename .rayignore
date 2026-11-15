@@ -1,0 +1,9 @@
+# Ray's uv integration packages the working directory even for local debug runs.
+# Workers recreate the environment from pyproject.toml and uv.lock.
+.venv/
+.git/
+**/__pycache__/
+**/.ipynb_checkpoints/
+RESULTS/
+tensorboard_logs/
+telegram_config.yml

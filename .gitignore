@@ -4,3 +4,6 @@
 **__pycache__**
 
 telegram_config.yml
+
+.venv/
+tensorboard_logs/

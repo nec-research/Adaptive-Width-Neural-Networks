@@ -192,10 +192,16 @@ class LocalSearchExperiment(Experiment):
     IMPORTANT: Please look at results in the experiment.log file and not those returned by mlwiz
     """
 
-    def run_valid(self, dataset_getter, logger):
+    def run_valid(
+        self, dataset_getter, training_timeout_seconds, logger,
+        progress_callback=None, should_terminate=None,
+    ):
         raise NotImplementedError("Please read the class documentation.")
 
-    def run_test(self, dataset_getter, logger):
+    def run_test(
+        self, dataset_getter, training_timeout_seconds, logger,
+        progress_callback=None, should_terminate=None,
+    ):
         """
         This function returns the training, validation and test results
         for a `final run`.
@@ -265,6 +271,7 @@ class LocalSearchExperiment(Experiment):
         logger.log(f"Starting local search experiment.")
         t = 0
         while t < local_search_budget:
+            t += 1
             num_hidden_neurons = int(
                 torch.randint(min_neurons, max_neurons, (1,))
             )
@@ -280,11 +287,8 @@ class LocalSearchExperiment(Experiment):
             (
                 train_loss,
                 train_score,
-                _,  # check the ordering is correct
                 val_loss,
                 val_score,
-                _,
-                _,
                 _,
                 _,
             ) = training_engine.train(
@@ -293,10 +297,13 @@ class LocalSearchExperiment(Experiment):
                 test_loader=None,
                 max_epochs=config["epochs"],
                 logger=logger,
+                training_timeout_seconds=training_timeout_seconds,
+                progress_callback=progress_callback,
+                should_terminate=should_terminate,
             )
 
             if higher_results_are_better:
-                score = val_score["main_score"].item()
+                score = float(val_score["main_score"])
                 if score > best_score:
                     best_score = score
                     best_num_hidden_neurons = num_hidden_neurons
@@ -307,7 +314,7 @@ class LocalSearchExperiment(Experiment):
                     logger.log(f"Reached local minimum, abort search. ")
                     break
             else:
-                loss = val_loss["main_loss"].item()
+                loss = float(val_loss["main_loss"])
                 if loss < best_score:
                     best_score = loss
                     best_num_hidden_neurons = num_hidden_neurons
@@ -352,19 +359,19 @@ class LocalSearchExperiment(Experiment):
             (
                 train_loss,
                 train_score,
-                _,
                 val_loss,
                 val_score,
-                _,
                 test_loss,
                 test_score,
-                _,
             ) = training_engine.train(
                 train_loader=train_loader,
                 validation_loader=val_loader,
                 test_loader=test_loader,
                 max_epochs=config["epochs"],
                 logger=logger,
+                training_timeout_seconds=training_timeout_seconds,
+                progress_callback=progress_callback,
+                should_terminate=should_terminate,
             )
 
             test_losses.append(test_loss[MAIN_LOSS])
@@ -403,10 +410,16 @@ class BayesOptSearchExperiment(Experiment):
     IMPORTANT: Please look at results in the experiment.log file and not those returned by mlwiz
     """
 
-    def run_valid(self, dataset_getter, logger):
+    def run_valid(
+        self, dataset_getter, training_timeout_seconds, logger,
+        progress_callback=None, should_terminate=None,
+    ):
         raise NotImplementedError("Please read the class documentation.")
 
-    def run_test(self, dataset_getter, logger):
+    def run_test(
+        self, dataset_getter, training_timeout_seconds, logger,
+        progress_callback=None, should_terminate=None,
+    ):
         """
         This function returns the training, validation and test results
         for a `final run`.
@@ -484,11 +497,8 @@ class BayesOptSearchExperiment(Experiment):
             (
                 train_loss,
                 train_score,
-                _,  # check the ordering is correct
                 val_loss,
                 val_score,
-                _,
-                _,
                 _,
                 _,
             ) = training_engine.train(
@@ -497,6 +507,9 @@ class BayesOptSearchExperiment(Experiment):
                 test_loader=None,
                 max_epochs=copy_config["epochs"],
                 logger=logger,
+                training_timeout_seconds=training_timeout_seconds,
+                progress_callback=progress_callback,
+                should_terminate=should_terminate,
             )
 
             if higher_results_are_better:
@@ -514,7 +527,7 @@ class BayesOptSearchExperiment(Experiment):
             ],  # Hyperparameter space
             n_calls=bo_search_budget,  # Number of evaluations
             n_random_starts=1,
-            random_state=int(torch.initial_seed()),  # Ensures reproducibility
+            random_state=int(torch.initial_seed()) % (2**32),  # Ensures reproducibility
         )
 
         num_hidden_neurons = result.x[0]
@@ -557,19 +570,19 @@ class BayesOptSearchExperiment(Experiment):
             (
                 train_loss,
                 train_score,
-                _,
                 val_loss,
                 val_score,
-                _,
                 test_loss,
                 test_score,
-                _,
             ) = training_engine.train(
                 train_loader=train_loader,
                 validation_loader=val_loader,
                 test_loader=test_loader,
                 max_epochs=config["epochs"],
                 logger=logger,
+                training_timeout_seconds=training_timeout_seconds,
+                progress_callback=progress_callback,
+                should_terminate=should_terminate,
             )
 
             test_losses.append(test_loss[MAIN_LOSS])
